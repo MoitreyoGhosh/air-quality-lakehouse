@@ -1,0 +1,4 @@
+dataset_id,dataset_name,source,granularity,schema_version
+WBPCB_AQI,WBPCB Air Quality Monitoring,WBPCB,Hourly,v1.0
+OM_WEATHER,Open-Meteo Historical Weather,Open-Meteo,Hourly,v1.0
+OM_AQI,Open-Meteo Air Quality,Open-Meteo,Hourly,v1.0

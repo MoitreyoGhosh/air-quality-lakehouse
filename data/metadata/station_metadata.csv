@@ -1,0 +1,18 @@
+station_id,station_name,location,district,latitude,longitude,start_date,end_date,total_records,data_source,state,schema_version
+WB001,Avidipta Housing Complex,Avidipta Housing Complex,Kolkata,22.493217,88.39831,2022-03-14,2026-05-30,36115,WBPCB,West Bengal,v1.0
+WB002,"Ballygunge Campus, C.U","Ballygunge Campus, C.U",Kolkata,22.526701,88.36321,2022-10-15,2026-05-30,27602,WBPCB,West Bengal,v1.0
+WB003,Bethune College,Bethune College,Kolkata,22.58851,88.367807,2024-03-01,2026-05-30,15838,WBPCB,West Bengal,v1.0
+WB004,Dhapa Lock Pumping Station,Dhapa Lock Pumping Station ,Kolkata,22.558027,88.40998,2023-01-11,2026-05-30,27182,WBPCB,West Bengal,v1.0
+WB005,"East Calcutta Girls College, Lake Town","East Calcutta Girls College, Lake Town",Kolkata,22.601583,88.404556,2022-01-01,2026-05-30,36539,WBPCB,West Bengal,v1.0
+WB006,Flora Fountain,Flora Fountain,Kolkata,22.548628,88.382256,2022-04-19,2026-05-30,34751,WBPCB,West Bengal,v1.0
+WB007,Fortis Hospital,Fortis Hospital,Kolkata,22.52067,88.401204,2024-05-08,2026-05-30,13277,WBPCB,West Bengal,v1.0
+WB008,Lady Brabourne College,Lady Brabourne College,Kolkata,22.5451541,88.3673286,2022-08-23,2026-05-30,30732,WBPCB,West Bengal,v1.0
+WB009,Leather Complex,Leather Complex,Kolkata,22.4953,88.509293,2022-01-01,2026-05-30,35071,WBPCB,West Bengal,v1.0
+WB010,Lorreto College,Lorreto College,Kolkata,22.549372,88.35171,2023-09-13,2026-05-29,21323,WBPCB,West Bengal,v1.0
+WB011,Madhyamgram Municipality,Madhyamgram Municipality,Kolkata,22.692911,88.46523,2022-08-10,2026-05-30,31586,WBPCB,West Bengal,v1.0
+WB012,Maulana Azad Collage,Maulana Azad Collage,Kolkata,22.560925,88.358155,2023-09-05,2026-05-30,19541,WBPCB,West Bengal,v1.0
+WB013,Presidency University,Presidency University,Kolkata,22.5763855,88.3610445,2022-07-14,2026-05-30,32568,WBPCB,West Bengal,v1.0
+WB014,Sarojini Naidu College for Women,Sarojini Naidu College for Women,Kolkata,22.626505,88.41833,2022-03-02,2026-05-30,35472,WBPCB,West Bengal,v1.0
+WB015,Sarsuna College,Sarsuna College,Kolkata,22.48127,88.284554,2022-01-01,2026-05-30,37313,WBPCB,West Bengal,v1.0
+WB016,Urbana Housing Complex,Urbana Housing Complex,Kolkata,22.511385,88.412384,2022-04-05,2026-05-30,35403,WBPCB,West Bengal,v1.0
+WB017,"VIVEKANANDA COLLEGE FOR WOMEN, BARISHA","VIVEKANANDA COLLEGE FOR WOMEN, BARISHA",Kolkata,22.4885267,88.3141944,2022-01-10,2026-05-30,37803,WBPCB,West Bengal,v1.0
