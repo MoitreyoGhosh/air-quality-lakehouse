@@ -1,0 +1,16 @@
+feature,importance
+pm25,0.57212543
+aqi_lag_1,0.103032835
+pm10,0.08187771
+month_cos,0.060761653
+hour_sin,0.04428826
+hour_cos,0.03953887
+aqi_lag_24,0.020751705
+month_sin,0.011989749
+relative_humidity_2m,0.011679153
+surface_pressure,0.011241821
+temperature_2m,0.010292722
+aqi_lag_168,0.009766417
+precipitation,0.008514544
+cloud_cover,0.0071722204
+wind_speed_10m,0.0069669536
