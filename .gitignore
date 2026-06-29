@@ -1,0 +1,15 @@
+data/raw/*
+data/processed/*
+data/curated/*
+src/notebooks/.cache.sqlite
+models/*
+lakehouse/bronze/*
+lakehouse/silver/*
+lakehouse/gold/*
+lakehouse/metadata/*
+
+.venv/*
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+*$py.class
