@@ -25,6 +25,19 @@ LOG_DIR = LAKEHOUSE_DIR / "logs"
 # DuckDB
 DUCKDB_PATH = LAKEHOUSE_METADATA_DIR / "lakehouse.duckdb"
 
+# =====================================================
+
+SCHEDULE_DAY = "Sunday"
+
+SCHEDULE_TIME = "02:00"
+
+REALTIME_RAW_DIR = RAW_DIR / "realtime"
+
+REALTIME_RAW_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
 # Create Required Directories
 for directory in [
     BRONZE_DIR,
