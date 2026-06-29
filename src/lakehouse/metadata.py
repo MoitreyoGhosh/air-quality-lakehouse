@@ -186,3 +186,161 @@ def list_files():
     con.close()
 
     return df
+
+# ==========================================================
+# Validation Registration
+# ==========================================================
+
+def register_validation(
+    dataset_name: str,
+    layer: str,
+    check_name: str,
+    status: str,
+    value: str
+):
+    """
+    Store validation results in DuckDB.
+    """
+
+    con = get_connection()
+
+    validation_id = con.execute(
+        """
+        SELECT COALESCE(MAX(validation_id),0)+1
+        FROM validation_results
+        """
+    ).fetchone()[0]
+
+    con.execute(
+        """
+        INSERT INTO validation_results
+        VALUES
+        (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            validation_id,
+            dataset_name,
+            layer,
+            check_name,
+            status,
+            value,
+            datetime.now()
+        )
+    )
+
+    con.close()
+
+# ==========================================================
+# Dataset Version Registration
+# ==========================================================
+
+def register_version(
+    dataset_name: str,
+    version: str,
+    checksum: str
+):
+    """
+    Store dataset version history.
+    """
+
+    con = get_connection()
+
+    version_id = con.execute(
+        """
+        SELECT COALESCE(MAX(version_id),0)+1
+        FROM dataset_versions
+        """
+    ).fetchone()[0]
+
+    con.execute(
+        """
+        INSERT INTO dataset_versions
+        VALUES
+        (?, ?, ?, ?, ?)
+        """,
+        (
+            version_id,
+            dataset_name,
+            version,
+            checksum,
+            datetime.now()
+        )
+    )
+
+    con.close()
+
+# ==========================================================
+# Dataset Statistics
+# ==========================================================
+
+def register_statistics(
+    dataset_name: str,
+    row_count: int,
+    column_count: int,
+    null_count: int,
+    duplicate_count: int
+):
+    """
+    Store dataset statistics.
+    """
+
+    con = get_connection()
+
+    con.execute(
+        """
+        INSERT OR REPLACE INTO dataset_statistics
+        VALUES
+        (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            dataset_name,
+            row_count,
+            column_count,
+            null_count,
+            duplicate_count,
+            datetime.now()
+        )
+    )
+
+    con.close()
+
+def list_validation_results():
+
+    con = get_connection()
+
+    df = con.execute("""
+        SELECT *
+        FROM validation_results
+        ORDER BY checked_at DESC
+    """).fetchdf()
+
+    con.close()
+
+    return df
+
+def list_versions():
+
+    con = get_connection()
+
+    df = con.execute("""
+        SELECT *
+        FROM dataset_versions
+        ORDER BY created_at DESC
+    """).fetchdf()
+
+    con.close()
+
+    return df
+
+def list_statistics():
+
+    con = get_connection()
+
+    df = con.execute("""
+        SELECT *
+        FROM dataset_statistics
+    """).fetchdf()
+
+    con.close()
+
+    return df
