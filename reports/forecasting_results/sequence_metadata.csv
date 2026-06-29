@@ -1,0 +1,2 @@
+lookback_hours,forecast_horizon_hours,n_features,train_samples,val_samples,test_samples
+168,24,9,304488,143742,56622
