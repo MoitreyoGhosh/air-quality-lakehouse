@@ -1,0 +1,4 @@
+dataset,rows,columns,stations,start_datetime,end_datetime,duplicates,missing_values
+WBPCB Master,508054,19,17,2022-01-01 21:00:00,2026-05-30 21:00:00,0,0
+Weather Master,657288,15,17,2022-01-01 00:00:00,2026-05-30 23:00:00,0,0
+Environment Master,508054,18,17,2022-01-01 21:00:00,2026-05-30 21:00:00,0,0

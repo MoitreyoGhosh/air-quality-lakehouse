@@ -1,19 +1,19 @@
-from src.database.connection import get_connection
-from src.config import DUCKDB_PATH
+from .connection import database
+from .initializer import initializer
+from .config import DATABASE_FILE
 
 
 def initialize_database():
-
-    connection = get_connection()
+    database.connect()
+    initializer.initialize()
 
     print("=" * 60)
     print("DuckDB Initialized Successfully")
     print("=" * 60)
-    print(f"Database : {DUCKDB_PATH}")
+    print(f"Database : {DATABASE_FILE}")
 
-    connection.close()
+    database.close()
 
 
 if __name__ == "__main__":
-
     initialize_database()

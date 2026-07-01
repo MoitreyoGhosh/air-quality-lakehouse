@@ -1,346 +1,274 @@
 """
-Utility functions for managing the Lakehouse metadata catalog.
+metadata.py
+=====================================
+
+Lakehouse Metadata Manager
+
+Responsibilities
+----------------
+✓ Create metadata tables
+✓ Register datasets
+✓ Log ingestion events
+✓ Store validation summaries
+
+This module never stores environmental data.
+Only metadata about the lakehouse.
 """
 
-from pathlib import Path
+from __future__ import annotations
+
 from datetime import datetime
-import hashlib
 
-from src.database.connection import get_connection
+import pandas as pd
 
-# Utility Functions
-def calculate_checksum(file_path: Path) -> str:
+from src.database import DatabaseUtils
+from src.database.connection import database
+
+
+class MetadataManager:
     """
-    Calculate SHA256 checksum for a file.
+    Manage metadata tables for the lakehouse.
     """
+    # =====================================================
+    # Initialization
+    # =====================================================
 
-    sha256 = hashlib.sha256()
-
-    with open(file_path, "rb") as file:
-        while chunk := file.read(8192):
-            sha256.update(chunk)
-
-    return sha256.hexdigest()
-
-# Dataset Registration
-def register_dataset(
-    dataset_name: str,
-    layer: str,
-    source: str,
-    file_format: str,
-    rows: int,
-    columns: int,
-    version: str,
-    checksum: str
-):
-    """
-    Register or update a dataset in DuckDB.
-    """
-
-    con = get_connection()
-
-    con.execute(
+    def initialize(self) -> None:
         """
-        INSERT OR REPLACE INTO datasets
-        VALUES
-        (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        Create metadata tables if they do not exist.
+        """
+        conn = database.connection
+
+        # ---------------------------------------------
+        # Dataset Registry
+        # ---------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS metadata.dataset_registry (
+                dataset_name TEXT PRIMARY KEY,
+                source TEXT,
+                layer TEXT,
+                rows INTEGER,
+                columns INTEGER,
+                created_at TIMESTAMP
+            );
+            """
         )
-        """,
-        (
-            dataset_name,
-            layer,
-            source,
-            file_format,
-            rows,
-            columns,
-            version,
-            checksum,
-            datetime.now(),
-            datetime.now()
+
+        # ---------------------------------------------
+        # Ingestion Log
+        # ---------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS metadata.ingestion_log (
+                id BIGINT,
+                dataset_name TEXT,
+                source TEXT,
+                layer TEXT,
+                status TEXT,
+                rows INTEGER,
+                timestamp TIMESTAMP
+
+            );
+            """
         )
-    )
 
-    con.close()
+        # ---------------------------------------------
+        # Validation Log
+        # ---------------------------------------------
 
-# File Registration
-def register_file(
-    file_name: str,
-    dataset_name: str,
-    layer: str,
-    file_path: str,
-    file_size_mb: float
-):
-    """
-    Register a physical file.
-    """
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS metadata.validation_log (
+                id BIGINT,
+                dataset_name TEXT,
+                duplicates INTEGER,
+                missing_columns INTEGER,
+                validation_time TIMESTAMP
 
-    con = get_connection()
-
-    con.execute(
-        """
-        INSERT OR REPLACE INTO files
-        VALUES
-        (
-            ?, ?, ?, ?, ?, ?
+            );
+            """
         )
-        """,
-        (
-            file_name,
-            dataset_name,
-            layer,
-            file_path,
-            file_size_mb,
-            datetime.now()
+
+        #---------------------------------------------
+        # Cleaning Report
+        #---------------------------------------------
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS metadata.cleaning_report (
+            source TEXT,
+            station TEXT,
+            original_rows INTEGER,
+            final_rows INTEGER,
+            duplicates_removed INTEGER,
+            empty_columns_removed INTEGER,
+            invalid_timestamps INTEGER
+            );
+            """
         )
-    )
 
-    con.close()
+    # =====================================================
+    # Dataset Registry
+    # =====================================================
 
-# Pipeline Logging
-def log_pipeline(
-    pipeline_name: str,
-    layer: str,
-    status: str,
-    message: str
-):
-    """
-    Record every pipeline execution.
-    """
-
-    con = get_connection()
-
-    run_id = con.execute(
+    def register_dataset(
+        self,
+        dataset_name: str,
+        source: str,
+        layer: str,
+        rows: int,
+        columns: int,
+    ) -> None:
         """
-        SELECT COALESCE(MAX(run_id), 0) + 1
-        FROM pipeline_runs
+        Register or update a dataset.
         """
-    ).fetchone()[0]
 
-    now = datetime.now()
+        conn = database.connection
 
-    con.execute(
-        """
-        INSERT INTO pipeline_runs
-        VALUES
-        (
-            ?, ?, ?, ?, ?, ?, ?
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO metadata.dataset_registry
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                dataset_name,
+                source,
+                layer,
+                rows,
+                columns,
+                datetime.now(),
+            ],
         )
-        """,
-        (
-            run_id,
-            pipeline_name,
-            layer,
-            status,
-            now,
-            now,
-            message
+
+    # =====================================================
+    # Ingestion Log
+    # =====================================================
+
+    def log_ingestion(
+        self,
+        dataset_name: str,
+        source: str,
+        layer: str,
+        status: str,
+        rows: int,
+    ) -> None:
+        """
+        Record an ingestion event.
+        """
+
+        conn = database.connection
+
+        next_id = conn.execute(
+            """
+            SELECT COALESCE(MAX(id),0)+1
+            FROM metadata.ingestion_log
+            """
+        ).fetchone()[0]
+
+        conn.execute(
+            """
+            INSERT INTO metadata.ingestion_log
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                next_id,
+                dataset_name,
+                source,
+                layer,
+                status,
+                rows,
+                datetime.now(),
+            ],
         )
-    )
 
-    con.close()
+    # =====================================================
+    # Validation Log
+    # =====================================================
 
-# Metadata Queries
-def list_datasets():
-    con = get_connection()
-
-    df = con.execute(
+    def log_validation(
+        self,
+        dataset_name: str,
+        duplicates: int,
+        missing_columns: int,
+    ) -> None:
         """
-        SELECT *
-        FROM datasets
-        ORDER BY dataset_name
+        Store validation summary.
         """
-    ).fetchdf()
 
-    con.close()
+        conn = database.connection
 
-    return df
+        next_id = conn.execute(
+            """
+            SELECT COALESCE(MAX(id),0)+1
+            FROM metadata.validation_log
+            """
+        ).fetchone()[0]
 
+        conn.execute(
+            """
+            INSERT INTO metadata.validation_log
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                next_id,
+                dataset_name,
+                duplicates,
+                missing_columns,
+                datetime.now(),
+            ],
+        )
 
-def list_pipeline_runs():
-    con = get_connection()
+    # =====================================================
+    # Reports
+    # =====================================================
 
-    df = con.execute(
+    @staticmethod
+    def dataset_registry() -> pd.DataFrame:
         """
-        SELECT *
-        FROM pipeline_runs
-        ORDER BY run_id DESC
+        Return registered datasets.
         """
-    ).fetchdf()
 
-    con.close()
+        return DatabaseUtils.query(
+            """
+            SELECT *
+            FROM metadata.dataset_registry
+            ORDER BY dataset_name
+            """
+        )
 
-    return df
-
-
-def list_files():
-    con = get_connection()
-
-    df = con.execute(
+    @staticmethod
+    def ingestion_history() -> pd.DataFrame:
         """
-        SELECT *
-        FROM files
-        ORDER BY file_name
+        Return ingestion history.
         """
-    ).fetchdf()
-    con.close()
 
-    return df
+        return DatabaseUtils.query(
+            """
+            SELECT *
+            FROM metadata.ingestion_log
+            ORDER BY timestamp DESC
+            """
+        )
+
+    @staticmethod
+    def validation_history() -> pd.DataFrame:
+        """
+        Return validation history.
+        """
+
+        return DatabaseUtils.query(
+            """
+            SELECT *
+            FROM metadata.validation_log
+            ORDER BY validation_time DESC
+            """
+        )
+
 
 # ==========================================================
-# Validation Registration
+# Singleton
 # ==========================================================
 
-def register_validation(
-    dataset_name: str,
-    layer: str,
-    check_name: str,
-    status: str,
-    value: str
-):
-    """
-    Store validation results in DuckDB.
-    """
-
-    con = get_connection()
-
-    validation_id = con.execute(
-        """
-        SELECT COALESCE(MAX(validation_id),0)+1
-        FROM validation_results
-        """
-    ).fetchone()[0]
-
-    con.execute(
-        """
-        INSERT INTO validation_results
-        VALUES
-        (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            validation_id,
-            dataset_name,
-            layer,
-            check_name,
-            status,
-            value,
-            datetime.now()
-        )
-    )
-
-    con.close()
-
-# ==========================================================
-# Dataset Version Registration
-# ==========================================================
-
-def register_version(
-    dataset_name: str,
-    version: str,
-    checksum: str
-):
-    """
-    Store dataset version history.
-    """
-
-    con = get_connection()
-
-    version_id = con.execute(
-        """
-        SELECT COALESCE(MAX(version_id),0)+1
-        FROM dataset_versions
-        """
-    ).fetchone()[0]
-
-    con.execute(
-        """
-        INSERT INTO dataset_versions
-        VALUES
-        (?, ?, ?, ?, ?)
-        """,
-        (
-            version_id,
-            dataset_name,
-            version,
-            checksum,
-            datetime.now()
-        )
-    )
-
-    con.close()
-
-# ==========================================================
-# Dataset Statistics
-# ==========================================================
-
-def register_statistics(
-    dataset_name: str,
-    row_count: int,
-    column_count: int,
-    null_count: int,
-    duplicate_count: int
-):
-    """
-    Store dataset statistics.
-    """
-
-    con = get_connection()
-
-    con.execute(
-        """
-        INSERT OR REPLACE INTO dataset_statistics
-        VALUES
-        (?, ?, ?, ?, ?, ?)
-        """,
-        (
-            dataset_name,
-            row_count,
-            column_count,
-            null_count,
-            duplicate_count,
-            datetime.now()
-        )
-    )
-
-    con.close()
-
-def list_validation_results():
-
-    con = get_connection()
-
-    df = con.execute("""
-        SELECT *
-        FROM validation_results
-        ORDER BY checked_at DESC
-    """).fetchdf()
-
-    con.close()
-
-    return df
-
-def list_versions():
-
-    con = get_connection()
-
-    df = con.execute("""
-        SELECT *
-        FROM dataset_versions
-        ORDER BY created_at DESC
-    """).fetchdf()
-
-    con.close()
-
-    return df
-
-def list_statistics():
-
-    con = get_connection()
-
-    df = con.execute("""
-        SELECT *
-        FROM dataset_statistics
-    """).fetchdf()
-
-    con.close()
-
-    return df
+metadata = MetadataManager()

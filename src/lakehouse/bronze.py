@@ -1,113 +1,262 @@
 """
 bronze.py
---------------------------
+=====================================
 
-Bronze Layer Pipeline
+Bronze Lakehouse Layer
 
 Responsibilities
 ----------------
-1. Copy raw datasets to Bronze layer
-2. Validate Bronze datasets
-3. Register metadata
-4. Log pipeline execution
+✓ Persist validated canonical datasets
+✓ Create Bronze tables dynamically
+✓ Preserve raw records (no cleaning)
+✓ Register datasets in metadata
+✓ Log ingestion events
 
-The actual implementation is handled by:
-    - LakehouseManager
-    - DatasetValidator
+The Bronze layer is immutable and stores the
+canonical representation of the source data.
 """
 
+from __future__ import annotations
+
+from typing import Dict
 from pathlib import Path
+import pandas as pd
 
-from src.config import RAW_DIR, BRONZE_DIR
-from src.lakehouse.manager import LakehouseManager
-from src.lakehouse.validation import DatasetValidator
+from src.database.connection import database
+from src.database.utils import DatabaseUtils
+from src.lakehouse.metadata import metadata
 
 
-class BronzePipeline:
+class BronzeLayer:
+    """
+    Bronze Lakehouse Manager.
+    """
+
+    # =====================================================
+    # Initialization
+    # =====================================================
 
     def __init__(self):
 
-        self.manager = LakehouseManager(
-            source_dir=RAW_DIR,
-            target_dir=BRONZE_DIR,
-            layer="bronze"
+        self.connection = database.connection
+
+        self.project_root = Path.cwd()
+
+        self.bronze_directory = (
+            self.project_root
+            / "data"
+            / "bronze"
         )
 
-    def validate_bronze(self):
+        self.bronze_directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+    def initialize(self) -> None:
         """
-        Validate every dataset copied into Bronze.
+        Initialize metadata tables.
         """
 
-        print("\n" + "=" * 70)
-        print("BRONZE VALIDATION")
-        print("=" * 70)
+        metadata.initialize()
 
-        validation_passed = True
+    # =====================================================
+    # Table Name
+    # =====================================================
 
-        for dataset in BRONZE_DIR.rglob("*"):
+    @staticmethod
+    def table_name(dataset_name: str) -> str:
+        """
+        Convert dataset name into a DuckDB-safe table name.
+        """
 
-            if dataset.suffix.lower() not in [
-                ".xlsx",
-                ".csv",
-                ".parquet"
-            ]:
-                continue
+        return (
+            dataset_name.lower()
+            .replace(" ", "_")
+            .replace("-", "_")
+            .replace(",", "")
+            .replace(".", "")
+            .replace("/", "_")
+            .replace("(", "")
+            .replace(")", "")
+        )
 
-            validator = DatasetValidator(dataset)
+    # =====================================================
+    # Write Dataset
+    # =====================================================
 
-            report = validator.validate()
+    def write(
+        self,
+        dataset_name: str,
+        df: pd.DataFrame,
+        source: str,
+    ) -> None:
+        """
+        Persist a single dataset into Bronze.
+        """
 
-            validator.print_report(report)
+        
+        conn = database.connection
 
-            # Stop pipeline if any validation fails
-
-            if (
-                not report["file_exists"]
-                or report["empty"]
-                or report["duplicates"] > 0
-            ):
-                validation_passed = False
-
-        return validation_passed
-
-    def run(self):
-
-        print("\n" + "=" * 80)
-        print("BRONZE LAYER")
-        print("=" * 80)
-
-        # -------------------------------------------------
-        # Step 1 : Ingestion
-        # -------------------------------------------------
-
-        self.manager.ingest()
+        table = self.table_name(dataset_name)
 
         # -------------------------------------------------
-        # Step 2 : Validation
+        # Preserve source lineage
         # -------------------------------------------------
 
-        passed = self.validate_bronze()
+        df = df.copy()
 
-        if passed:
+        df["source_dataset"] = dataset_name      # Original dataset/file name
+        df["source"] = source                    # WBPCB / OPENMETEO
+        df["bronze_table"] = table               # DuckDB table name
 
-            print("\n✅ Bronze Layer Validation PASSED")
+    
+        # Register dataframe temporarily
+        DatabaseUtils.register(
+            "dataset_df",
+            df,
+        )
 
-        else:
+        # Replace table with latest version
+        conn.execute(
+            f"""
+            CREATE OR REPLACE TABLE bronze.{table} AS
+            SELECT *
+            FROM dataset_df;
+            """
+        )
 
-            print("\n❌ Bronze Layer Validation FAILED")
+        DatabaseUtils.unregister(
+            "dataset_df"
+        )
+        
+        # -------------------------------------------------
+        # Save Parquet
+        # -------------------------------------------------
+        
+        self.save_parquet(
+            table,
+            df,
+        )
+        
+        # -------------------------------------------------
+        # Register metadata
+        # -------------------------------------------------
+        
+        metadata.register_dataset(
+            dataset_name=dataset_name,
+            source=source,
+            layer="bronze",
+            rows=len(df),
+            columns=len(df.columns),
+        )
+        
+        metadata.log_ingestion(
+            dataset_name=dataset_name,
+            source=source,
+            layer="bronze",
+            status="SUCCESS",
+            rows=len(df),
+        )
+    
+    # =====================================================
+    # Save Parquet
+    # =====================================================
+    
+    def save_parquet(
+        self,
+        table: str,
+        df: pd.DataFrame,
+    ) -> None:
+    
+        path = (
+            self.bronze_directory
+            / f"{table}.parquet"
+        )
+    
+        df.to_parquet(
+            path,
+            index=False,
+        )
+    
+        assert path.exists(), (
+            f"Failed to export {path}"
+        )
+    
+        print(
+            f"✓ Saved {path.name}"
+        )
+    
+    # =====================================================
+    # Batch Write
+    # =====================================================
 
-            raise RuntimeError(
-                "Bronze validation failed. Pipeline stopped."
+    def write_all(
+        self,
+        datasets: Dict[str, pd.DataFrame],
+        source: str,
+    ) -> None:
+        """
+        Persist multiple datasets.
+        """
+
+        self.initialize()
+
+        for dataset_name, df in datasets.items():
+            self.write(
+                dataset_name=dataset_name,
+                df=df,
+                source=source,
             )
 
-        return True
+    # =====================================================
+    # Read Dataset
+    # =====================================================
+
+    def read(
+        self,
+        dataset_name: str,
+    ) -> pd.DataFrame:
+        """
+        Read a Bronze dataset.
+        """
+
+        table = self.table_name(dataset_name)
+
+        return DatabaseUtils.query(
+            f"""
+            SELECT *
+            FROM bronze.{table}
+            """
+        )
+
+    # =====================================================
+    # List Tables
+    # =====================================================
+
+    @staticmethod
+    def tables() -> list[str]:
+        """
+        List all Bronze tables.
+        """
+
+        return DatabaseUtils.list_tables("bronze")
+
+    # =====================================================
+    # Summary
+    # =====================================================
+
+    @staticmethod
+    def summary() -> pd.DataFrame:
+        """
+        Return Bronze dataset registry.
+        """
+
+        return metadata.dataset_registry()
 
 
-def run():
+# ==========================================================
+# Singleton
+# ==========================================================
 
-    BronzePipeline().run()
-
-
-if __name__ == "__main__":
-
-    run()
+bronze = BronzeLayer()

@@ -1,6 +1,9 @@
 data/raw/*
-data/processed/*
-data/curated/*
+data/bronze/*
+data/silver/*
+
+database/*
+
 src/notebooks/.cache.sqlite
 models/*
 lakehouse/bronze/*
