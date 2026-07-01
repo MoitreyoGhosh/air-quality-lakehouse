@@ -1,0 +1,15 @@
+original,normalized,canonical
+station_id,station_id,station_id
+station_name,station_name,station_name
+district,district,district
+latitude,latitude,latitude
+longitude,longitude,longitude
+time,time,time
+interval,interval,interval
+us_aqi,us_aqi,us_aqi
+pm2_5,pm2_5,pm2_5
+pm10,pm10,pm10
+carbon_monoxide,carbon_monoxide,carbon_monoxide
+nitrogen_dioxide,nitrogen_dioxide,nitrogen_dioxide
+ozone,ozone,ozone
+sulphur_dioxide,sulphur_dioxide,sulphur_dioxide

@@ -122,6 +122,21 @@ class SchemaMapper:
 
         canonical_df = self.resolve(normalized_df)
 
+        # ------------------------------------------------------
+        # Validate duplicate canonical columns
+        # ------------------------------------------------------
+
+        duplicates = canonical_df.columns[
+            canonical_df.columns.duplicated()
+        ].tolist()
+
+        if duplicates:
+            raise ValueError(
+                "Duplicate canonical columns detected after alias resolution.\n"
+                f"Duplicate columns: {duplicates}\n"
+                "Please review AliasResolver.ALIASES."
+            )
+
         canonical = list(canonical_df.columns)
 
         report = MappingReport(

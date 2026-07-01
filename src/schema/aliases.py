@@ -41,27 +41,39 @@ class AliasResolver:
     # ======================================================
     # Identity
     # ======================================================
-
+    
     "serial": "serial",
-
-    "station": "station",
-    "location": "station",
-    "station_name": "station",
-    "station_id": "station",
-    "site": "station",
-    "site_name": "station",
-    "monitoring_station": "station",
-
+    
+    # ------------------------------------------------------
+    # Station Metadata
+    # ------------------------------------------------------
+    
+    # Preserve canonical identifiers
+    "station_id": "station_id",
+    
+    "station_name": "station_name",
+    
+    # Common aliases for station names
+    "station": "station_name",
+    "location": "station_name",
+    "site": "station_name",
+    "site_name": "station_name",
+    "monitoring_station": "station_name",
+    
+    # Location Metadata
     "district": "district",
-
+    
+    "latitude": "latitude",
+    
+    "longitude": "longitude",
+    
+    # Datetime
     "date": "date",
     "time": "time",
     "hour": "hour",
     "datetime": "datetime",
-
-    "latitude": "latitude",
-    "longitude": "longitude",
-
+    
+    # AQI
     "aqi": "aqi",
 
     # ======================================================
